@@ -499,6 +499,14 @@ class Orchestrator:
             print(f"[debug] Setting challenge: {challenge}")
             if isinstance(challenge, dict):
                 print(f"[debug] Challenge keys: {list(challenge.keys())}")
+            # If a new challenge is set, allow one worker to fetch/save it again
+            try:
+                # clear the single-fetch guard so workers will refetch for this challenge
+                if challenge_fetched.is_set():
+                    print("[debug] Clearing challenge_fetched event for new challenge")
+                    challenge_fetched.clear()
+            except Exception:
+                pass
             self.current_challenge = challenge
 
     def start_workers(self):
@@ -749,6 +757,15 @@ def main():
                 time.sleep(1)
 
             console.log(f"✅ Done Challenge {challenge['challenge_id']}")
+            # Remove completed challenge from CSV
+            try:
+                removed = remove_challenge_from_csv(args.csv_file, challenge['challenge_id'], console)
+                if removed:
+                    console.log(f"[green]Removed challenge {challenge['challenge_id']} from {args.csv_file}")
+                else:
+                    console.log(f"[yellow]Challenge {challenge['challenge_id']} not found in {args.csv_file}, nothing removed")
+            except Exception as e:
+                console.log(f"[red]Failed to remove challenge from CSV: {e}")
             progress.advance(challenge_task)
             time.sleep(1)
 
